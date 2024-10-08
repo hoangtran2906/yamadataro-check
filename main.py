@@ -191,16 +191,17 @@ async def check(ctx):
     if 'available_slots' in availability_info:
         # Send the results back to the Discord channel
         for info in availability_info['available_slots']:
-            await ctx.send(
-                f"Date: {info['date']}, Available Slots: {info['available_count']}"
-            )
+            message = f"Date: {info['date']}, Available Slots: {info['available_count']}"
+            if info['available_count'] > 0:
+                message += " <@hoangtran>"  # Add mention if available count > 0
+            await ctx.send(message)
             for slot in info['slots']:
                 await ctx.send(f" - {slot['day']} (Link: {slot['href']})")
     else:
         await ctx.send("An error occurred while checking availability.")
 
 
-@tasks.loop(minutes=5)  # Runs every 60 minutes
+@tasks.loop(minutes=30)  # Runs every 60 minutes
 async def check_appointments_loop():
     base_url = "https://vancouver.yamadataro.jp/booking/store/1?sd="  # Update the base URL if needed
     channel_id = 1191526968030679201  # Replace with your Discord channel ID
@@ -222,7 +223,10 @@ async def check_appointments_loop():
     if 'available_slots' in availability_info:
         # Send the results back to the Discord channel
         for info in availability_info['available_slots']:
-            await channel.send(f"Date: {info['date']}, Available Slots: {info['available_count']}")
+            message = f"Date: {info['date']}, Available Slots: {info['available_count']}"
+            if info['available_count'] > 0:
+                message += " <@hoangtran>"  # Add mention if available count > 0
+            await channel.send(message)
             for slot in info['slots']:
                 await channel.send(f" - {slot['day']} (Link: {slot['href']})")
     else:
@@ -232,7 +236,7 @@ async def check_appointments_loop():
 @bot.command()
 async def start_check(ctx):
     if not check_appointments_loop.is_running():
-        check_appointments_loop.start()
+        check_appointments_loop.star    t()
         await ctx.send('Appointment check started!')
 
 # Command to stop the scheduled task
