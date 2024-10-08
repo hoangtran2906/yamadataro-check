@@ -236,7 +236,7 @@ async def check_appointments_loop():
 @bot.command()
 async def start_check(ctx):
     if not check_appointments_loop.is_running():
-        check_appointments_loop.star    t()
+        check_appointments_loop.start()
         await ctx.send('Appointment check started!')
 
 # Command to stop the scheduled task
