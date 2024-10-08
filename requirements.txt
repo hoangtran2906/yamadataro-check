@@ -1,0 +1,8 @@
+async-timeout==4.0.3
+asyncpraw==7.7.1
+asyncprawcore==2.4.0
+discord.py==2.3.2
+Flask==3.0.0
+praw==7.7.1
+prawcore==2.4.0
+selenium==4.25.0
