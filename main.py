@@ -1,6 +1,7 @@
 import asyncpraw
 import discord
 from discord.ext import commands, tasks
+import discord.errors
 import asyncio
 import os
 
@@ -8,6 +9,7 @@ from keep_alive import keep_alive
 
 import time
 from datetime import datetime, timedelta
+import pytz
 from urllib.parse import parse_qs, urlparse
 
 from selenium import webdriver
@@ -121,8 +123,9 @@ def check_appointment_availability(base_url):
     try:
         # Loop for today and the next 3 increments of 7 days (total 4 times)
         for increment in range(8):
+            local_timezone = pytz.timezone('America/Vancouver')
             # Calculate the date for the current increment
-            current_date = (datetime.today() +
+            current_date = (datetime.now(local_timezone) +
                             timedelta(days=increment * 7)).strftime('%Y-%m-%d')
             url_with_date = f"{base_url}{current_date}"
 
@@ -226,11 +229,24 @@ async def check_appointments_loop():
             message = f"Date: {info['date']}, Available Slots: {info['available_count']}"
             if info['available_count'] > 0:
                 message += " <@hoangtran>"  # Add mention if available count > 0
-            await channel.send(message)
-            for slot in info['slots']:
-                await channel.send(f" - {slot['day']} (Link: {slot['href']})")
-    else:
-        await channel.send("An error occurred while checking availability.")
+        for attempt in range(3):  # Retry up to 3 times
+            try:
+                await channel.send(message)
+                for slot in info['slots']:
+                    await channel.send(f" - {slot['day']} (Link: {slot['href']})")
+                break  # Break out of the retry loop if successful
+            except discord.errors.DiscordServerError as e:
+                if e.code == 503:
+                    print(f"Discord service unavailable (503). Retry {attempt + 1}/3...")
+                    await asyncio.sleep(5)  # Wait 5 seconds before retrying
+                else:
+                    raise  # Raise other errors if they are not related to 503
+            except Exception as e:
+                print(f"An unexpected error occurred: {e}")
+                break  # Exit the retry loop for any other unexpected error
+
+        else:
+            await channel.send("An error occurred while checking availability.")
 
 # Command to start the scheduled task
 @bot.command()
@@ -246,6 +262,15 @@ async def stop_check(ctx):
         check_appointments_loop.stop()
         await ctx.send('Appointment check stopped!')
 
+async def keep_bot_alive():
+    while True:
+        try:
+            await bot.start(discord_token)  # Use your actual bot token
+        except discord.errors.ConnectionClosed as e:
+            print(f"WebSocket closed with code {e.code}. Reconnecting in 5 seconds...")
+            await asyncio.sleep(5)  # Wait 5 seconds before attempting to reconnect
+
+
 keep_alive()
 
-bot.run(discord_token)
+asyncio.run(keep_bot_alive())
