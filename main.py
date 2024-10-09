@@ -224,29 +224,30 @@ async def check_appointments_loop():
     availability_info = await loop.run_in_executor(None, run_check)
 
     if 'available_slots' in availability_info:
-        # Send the results back to the Discord channel
         for info in availability_info['available_slots']:
             message = f"Date: {info['date']}, Available Slots: {info['available_count']}"
             if info['available_count'] > 0:
-                message += " <@hoangtran>"  # Add mention if available count > 0
-        for attempt in range(3):  # Retry up to 3 times
-            try:
-                await channel.send(message)
-                for slot in info['slots']:
-                    await channel.send(f" - {slot['day']} (Link: {slot['href']})")
-                break  # Break out of the retry loop if successful
-            except discord.errors.DiscordServerError as e:
-                if e.code == 503:
-                    print(f"Discord service unavailable (503). Retry {attempt + 1}/3...")
-                    await asyncio.sleep(5)  # Wait 5 seconds before retrying
-                else:
-                    raise  # Raise other errors if they are not related to 503
-            except Exception as e:
-                print(f"An unexpected error occurred: {e}")
-                break  # Exit the retry loop for any other unexpected error
+                message += " <@hoangtran>"
 
-        else:
-            await channel.send("An error occurred while checking availability.")
+            # Retry logic with error handling for 503 errors
+            for attempt in range(3):  # Retry up to 3 times
+                try:
+                    await channel.send(message)
+                    for slot in info['slots']:
+                        await channel.send(f" - {slot['day']} (Link: {slot['href']})")
+                    break  # Break out of the retry loop if successful
+                except discord.errors.DiscordServerError as e:
+                    if e.code == 503:
+                        print(f"Discord service unavailable (503). Retry {attempt + 1}/3...")
+                        await asyncio.sleep(5)  # Wait 5 seconds before retrying
+                    else:
+                        raise  # Raise other errors if they are not related to 503
+                except Exception as e:
+                    print(f"An unexpected error occurred: {e}")
+                    break  # Exit the retry loop for any other unexpected error
+
+    else:
+        await channel.send("An error occurred while checking availability.")
 
 # Command to start the scheduled task
 @bot.command()
